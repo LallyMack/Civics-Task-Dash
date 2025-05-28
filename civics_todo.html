@@ -1,119 +1,47 @@
+
 <!DOCTYPE html>
-<html lang="en" class="transition-colors">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Civics Committee Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Civics Committee Task Dashboard</title>
+
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- External Dashboard Styles -->
+  <link rel="stylesheet" href="dashboard.css">
+
+  <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-  <style>
-    .priority-high { border-left-color: #ef4444 !important; background-color: #fee2e2; }
-    .priority-medium { border-left-color: #f59e0b !important; background-color: #fef9c3; }
-    .priority-low { border-left-color: #10b981 !important; background-color: #d1fae5; }
-  </style>
 </head>
-<body class="bg-gradient-to-br from-slate-50 to-sky-100 dark:from-slate-800 dark:to-slate-900 text-slate-800 dark:text-slate-100">
-  <div class="container mx-auto p-6">
-    <div class="flex justify-between items-center mb-4">
-      <h1 class="text-3xl font-bold text-sky-700 dark:text-sky-300">Civics Committee To-Do</h1>
-      <button id="darkToggle" class="bg-slate-300 dark:bg-slate-700 px-4 py-2 rounded hover:bg-slate-400 dark:hover:bg-slate-600">Toggle Dark Mode</button>
-    </div>
+<body class="bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-white min-h-screen p-4 font-sans">
 
-    <form id="taskForm" class="grid md:grid-cols-6 gap-2 mb-6">
-      <input type="text" id="taskName" placeholder="Task name" required class="p-2 border rounded">
-      <select id="taskCategory" class="p-2 border rounded">
-        <option value="Housekeeping">🧹 Housekeeping</option>
-        <option value="Communications">📢 Communications</option>
-        <option value="Working Groups">🧠 Working Groups</option>
-        <option value="Events">📅 Events</option>
-        <option value="Ongoing Participation">🔁 Ongoing Participation</option>
-      </select>
-      <select id="taskStatus" class="p-2 border rounded">
-        <option value="To Do">To Do</option>
-        <option value="In Progress">In Progress</option>
-        <option value="Done">Done</option>
-      </select>
-      <select id="taskAssignee" class="p-2 border rounded">
-        <option value="Not Assigned">Not Assigned</option>
-        <option>Reshan Fernando</option>
-        <option>Taichi Yokoyama</option>
-        <option>Takeshi Ohishi</option>
-        <option>Michael Madoff</option>
-        <option>Larisa (Secretary)</option>
-        <option>Nicolas Cerny</option>
-        <option>Ken Erik Ølmheim</option>
-        <option>Nana Safo</option>
-        <option>Randy</option>
-        <option>Joseph Mermoz Dzubang</option>
-        <option>Aleksei Seregin</option>
-        <option>Lorenzo Bruno</option>
-        <option>Thomas Lindseth</option>
-      </select>
-      <input type="date" id="taskDueDate" class="p-2 border rounded">
-      <select id="taskPriority" class="p-2 border rounded">
-        <option value="High">High</option>
-        <option value="Medium">Medium</option>
-        <option value="Low">Low</option>
-      </select>
-      <input type="submit" value="Add Task" class="bg-sky-600 text-white py-2 px-4 rounded cursor-pointer hover:bg-sky-700">
-    </form>
+  <div class="container mx-auto max-w-6xl">
+    <header class="flex justify-between items-center mb-6">
+      <h1 class="text-3xl font-bold">🗂️ Civics Committee Dashboard</h1>
+      <button id="toggleDarkMode" class="bg-purple-600 text-white px-4 py-2 rounded shadow">Toggle Dark Mode</button>
+    </header>
 
-    <div class="flex flex-wrap gap-4 mb-6">
-      <label>Filter Category:
-        <select id="filterCategory" class="p-2 border rounded">
-          <option value="All">All</option>
-          <option value="Housekeeping">Housekeeping</option>
-          <option value="Communications">Communications</option>
-          <option value="Working Groups">Working Groups</option>
-          <option value="Events">Events</option>
-          <option value="Ongoing Participation">Ongoing Participation</option>
-        </select>
-      </label>
-      <label>Filter Assignee:
-        <select id="filterAssignee" class="p-2 border rounded">
-          <option value="All">All</option>
-          <option>Reshan Fernando</option>
-          <option>Taichi Yokoyama</option>
-          <option>Takeshi Ohishi</option>
-          <option>Michael Madoff</option>
-          <option>Larisa (Secretary)</option>
-          <option>Nicolas Cerny</option>
-          <option>Ken Erik Ølmheim</option>
-          <option>Nana Safo</option>
-          <option>Randy</option>
-          <option>Joseph Mermoz Dzubang</option>
-          <option>Aleksei Seregin</option>
-          <option>Lorenzo Bruno</option>
-          <option>Thomas Lindseth</option>
-        </select>
-      </label>
-      <label>Filter Priority:
-        <select id="filterPriority" class="p-2 border rounded">
-          <option value="All">All</option>
-          <option value="High">High</option>
-          <option value="Medium">Medium</option>
-          <option value="Low">Low</option>
-        </select>
-      </label>
-      <label>Filter Status:
-        <select id="filterStatus" class="p-2 border rounded">
-          <option value="All">All</option>
-          <option value="To Do">To Do</option>
-          <option value="In Progress">In Progress</option>
-          <option value="Done">Done</option>
-        </select>
-      </label>
-      <button onclick="exportCSV()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Export CSV</button>
-    </div>
+    <section id="dashboardSummary" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6"></section>
 
-    <div id="taskListContainer" class="mb-6"></div>
-
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-10">
+    <div id="chartArea" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
       <canvas id="categoryChart"></canvas>
       <canvas id="assigneeChart"></canvas>
     </div>
+
+    <div id="sortContainer" class="mb-4"></div>
+
+    <section id="taskListContainer" class="space-y-4"></section>
+
+    <div class="mt-8 text-right">
+      <button id="exportCSV" class="bg-yellow-400 text-black px-4 py-2 rounded shadow">Export CSV</button>
+    </div>
   </div>
+
+  <!-- Modal is inserted dynamically by JS -->
+
+  <!-- Main JS File -->
   <script src="dashboard_local.js"></script>
 </body>
 </html>
