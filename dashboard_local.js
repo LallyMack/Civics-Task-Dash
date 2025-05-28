@@ -1,126 +1,69 @@
-// dashboard_local.js
+// dashboard_local.js - Updated with modal for viewing/editing tasks + styling moved to CSS file
 
-document.addEventListener('DOMContentLoaded', () => {
-  const taskForm = document.getElementById('taskForm');
-  const taskListContainer = document.getElementById('taskListContainer');
+// Modal Template
+const modal = document.createElement('div');
+modal.id = 'taskModal';
+modal.className = 'fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-50';
+modal.innerHTML = `
+  <div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-md w-full p-6 relative">
+    <button id="closeModal" class="absolute top-2 right-3 text-slate-500 hover:text-red-500">✕</button>
+    <h2 class="text-xl font-bold mb-4">Edit Task</h2>
+    <form id="modalForm" class="space-y-4">
+      <input type="hidden" name="taskId" id="modalTaskId">
+      <div>
+        <label class="block text-sm font-medium">Task Name</label>
+        <input type="text" id="modalTaskName" class="w-full p-2 border rounded dark:bg-slate-700">
+      </div>
+      <div>
+        <label class="block text-sm font-medium">Due Date</label>
+        <input type="date" id="modalTaskDue" class="w-full p-2 border rounded dark:bg-slate-700">
+      </div>
+      <div>
+        <label class="block text-sm font-medium">Status</label>
+        <select id="modalTaskStatus" class="w-full p-2 border rounded dark:bg-slate-700">
+          <option value="To Do">To Do</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Done">Done</option>
+        </select>
+      </div>
+      <button type="submit" class="bg-purple-600 text-white px-4 py-2 rounded">Save Changes</button>
+    </form>
+  </div>
+`;
+document.body.appendChild(modal);
 
-  // Theme toggle
-  const darkToggle = document.getElementById('darkToggle');
-  if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
-  darkToggle.addEventListener('click', () => {
-    document.documentElement.classList.toggle('dark');
-    localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
-  });
+// Modal Functions
+function openModal(task) {
+  document.getElementById('modalTaskId').value = task.id;
+  document.getElementById('modalTaskName').value = task.name;
+  document.getElementById('modalTaskDue').value = task.dueDate || '';
+  document.getElementById('modalTaskStatus').value = task.status;
+  modal.classList.remove('hidden');
+}
 
-  // Add task
-  taskForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const task = {
-      id: Date.now().toString(),
-      name: taskForm.taskName.value,
-      category: taskForm.taskCategory.value,
-      status: taskForm.taskStatus.value,
-      assignedTo: taskForm.taskAssignee.value,
-      dueDate: taskForm.taskDueDate.value,
-      priority: taskForm.taskPriority.value
-    };
-    const tasks = getTasks();
-    tasks.push(task);
-    saveTasks(tasks);
-    taskForm.reset();
+document.getElementById('closeModal').addEventListener('click', () => modal.classList.add('hidden'));
+
+document.getElementById('modalForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const id = document.getElementById('modalTaskId').value;
+  const name = document.getElementById('modalTaskName').value;
+  const dueDate = document.getElementById('modalTaskDue').value;
+  const status = document.getElementById('modalTaskStatus').value;
+  const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+  const index = tasks.findIndex(t => t.id === id);
+  if (index !== -1) {
+    tasks[index].name = name;
+    tasks[index].dueDate = dueDate;
+    tasks[index].status = status;
+    localStorage.setItem('tasks', JSON.stringify(tasks));
+    modal.classList.add('hidden');
     renderTasks();
     updateCharts(tasks);
-  });
-
-  // CSV Export
-  window.exportCSV = () => {
-    const tasks = getTasks();
-    const csv = Papa.unparse(tasks);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', 'civics_tasks.csv');
-    link.click();
-  };
-
-  // Helpers
-  function getTasks() {
-    return JSON.parse(localStorage.getItem('tasks') || '[]');
   }
-
-  function saveTasks(tasks) {
-    localStorage.setItem('tasks', JSON.stringify(tasks));
-  }
-
-  function renderTasks() {
-    const tasks = getTasks();
-    const category = document.getElementById('filterCategory').value;
-    const assignee = document.getElementById('filterAssignee').value;
-    const priority = document.getElementById('filterPriority').value;
-    const status = document.getElementById('filterStatus').value;
-
-    const filtered = tasks.filter(t =>
-      (category === 'All' || t.category === category) &&
-      (assignee === 'All' || t.assignedTo === assignee) &&
-      (priority === 'All' || t.priority === priority) &&
-      (status === 'All' || t.status === status)
-    );
-
-    taskListContainer.innerHTML = '';
-    for (const task of filtered) {
-      const div = document.createElement('div');
-      let pClass = task.priority === 'High' ? 'priority-high' : task.priority === 'Medium' ? 'priority-medium' : 'priority-low';
-      div.className = `p-4 mb-4 rounded shadow border-l-4 ${pClass}`;
-      div.innerHTML = `
-        <h3 class="text-lg font-semibold">${task.name}</h3>
-        <p class="text-sm">${task.category} | ${task.assignedTo} | ${task.status} | ${task.priority}</p>
-        <p class="text-xs text-slate-500">Due: ${task.dueDate || 'N/A'}</p>
-      `;
-      taskListContainer.appendChild(div);
-    }
-  }
-
-  function updateCharts(tasks) {
-    const ctxCat = document.getElementById('categoryChart');
-    const ctxAssignee = document.getElementById('assigneeChart');
-
-    const byCategory = {};
-    const byAssignee = {};
-    for (const t of tasks) {
-      byCategory[t.category] = (byCategory[t.category] || 0) + 1;
-      byAssignee[t.assignedTo] = (byAssignee[t.assignedTo] || 0) + 1;
-    }
-
-    new Chart(ctxCat, {
-      type: 'doughnut',
-      data: {
-        labels: Object.keys(byCategory),
-        datasets: [{
-          data: Object.values(byCategory),
-          backgroundColor: ['#60a5fa', '#fbbf24', '#34d399', '#a78bfa', '#f87171']
-        }]
-      }
-    });
-
-    new Chart(ctxAssignee, {
-      type: 'bar',
-      data: {
-        labels: Object.keys(byAssignee),
-        datasets: [{
-          data: Object.values(byAssignee),
-          label: 'Tasks',
-          backgroundColor: '#38bdf8'
-        }]
-      }
-    });
-  }
-
-  // Filter bindings
-  for (const id of ['filterCategory', 'filterAssignee', 'filterPriority', 'filterStatus']) {
-    document.getElementById(id).addEventListener('change', renderTasks);
-  }
-
-  renderTasks();
-  updateCharts(getTasks());
 });
+
+// Replace edit buttons
+window.editTask = (id) => {
+  const task = getTasks().find(t => t.id === id);
+  if (task) openModal(task);
+};
