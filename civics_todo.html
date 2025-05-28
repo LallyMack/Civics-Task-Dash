@@ -7,126 +7,116 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+  <style>
+    .priority-high { border-left-color: #ef4444 !important; background-color: #fee2e2; }
+    .priority-medium { border-left-color: #f59e0b !important; background-color: #fef9c3; }
+    .priority-low { border-left-color: #10b981 !important; background-color: #d1fae5; }
+  </style>
 </head>
 <body class="bg-gradient-to-br from-slate-50 to-sky-100 dark:from-slate-800 dark:to-slate-900 text-slate-800 dark:text-slate-100">
   <div class="container mx-auto p-6">
     <div class="flex justify-between items-center mb-4">
       <h1 class="text-3xl font-bold text-sky-700 dark:text-sky-300">Civics Committee To-Do</h1>
-      <button onclick="toggleDarkMode()" class="bg-slate-300 dark:bg-slate-700 px-4 py-2 rounded hover:bg-slate-400 dark:hover:bg-slate-600">Toggle Dark Mode</button>
+      <button id="darkToggle" class="bg-slate-300 dark:bg-slate-700 px-4 py-2 rounded hover:bg-slate-400 dark:hover:bg-slate-600">Toggle Dark Mode</button>
     </div>
 
-    <div class="flex flex-wrap gap-2 mb-4">
+    <form id="taskForm" class="grid md:grid-cols-6 gap-2 mb-6" onsubmit="addTask(event)">
+      <input type="text" id="taskName" placeholder="Task name" required class="p-2 border rounded">
+      <select id="taskCategory" class="p-2 border rounded">
+        <option value="Housekeeping">🧹 Housekeeping</option>
+        <option value="Communications">📢 Communications</option>
+        <option value="Working Groups">🧠 Working Groups</option>
+        <option value="Events">📅 Events</option>
+        <option value="Ongoing Participation">🔁 Ongoing Participation</option>
+      </select>
+      <select id="taskStatus" class="p-2 border rounded">
+        <option value="To Do">To Do</option>
+        <option value="In Progress">In Progress</option>
+        <option value="Done">Done</option>
+      </select>
+      <select id="taskAssignee" class="p-2 border rounded">
+        <option value="Not Assigned">Not Assigned</option>
+        <option>Reshan Fernando</option>
+        <option>Taichi Yokoyama</option>
+        <option>Takeshi Ohishi</option>
+        <option>Michael Madoff</option>
+        <option>Larisa (Secretary)</option>
+        <option>Nicolas Cerny</option>
+        <option>Ken Erik Ølmheim</option>
+        <option>Nana Safo</option>
+        <option>Randy</option>
+        <option>Joseph Mermoz Dzubang</option>
+        <option>Aleksei Seregin</option>
+        <option>Lorenzo Bruno</option>
+        <option>Thomas Lindseth</option>
+      </select>
+      <input type="date" id="taskDueDate" class="p-2 border rounded">
+      <select id="taskPriority" class="p-2 border rounded">
+        <option value="High">High</option>
+        <option value="Medium">Medium</option>
+        <option value="Low">Low</option>
+      </select>
+      <input type="submit" value="Add Task" class="bg-sky-600 text-white py-2 px-4 rounded cursor-pointer hover:bg-sky-700">
+    </form>
+
+    <div class="flex flex-wrap gap-4 mb-6">
+      <label>Filter Category:
+        <select id="filterCategory" class="p-2 border rounded">
+          <option value="All">All</option>
+          <option value="Housekeeping">Housekeeping</option>
+          <option value="Communications">Communications</option>
+          <option value="Working Groups">Working Groups</option>
+          <option value="Events">Events</option>
+          <option value="Ongoing Participation">Ongoing Participation</option>
+        </select>
+      </label>
+      <label>Filter Assignee:
+        <select id="filterAssignee" class="p-2 border rounded">
+          <option value="All">All</option>
+          <option>Reshan Fernando</option>
+          <option>Taichi Yokoyama</option>
+          <option>Takeshi Ohishi</option>
+          <option>Michael Madoff</option>
+          <option>Larisa (Secretary)</option>
+          <option>Nicolas Cerny</option>
+          <option>Ken Erik Ølmheim</option>
+          <option>Nana Safo</option>
+          <option>Randy</option>
+          <option>Joseph Mermoz Dzubang</option>
+          <option>Aleksei Seregin</option>
+          <option>Lorenzo Bruno</option>
+          <option>Thomas Lindseth</option>
+        </select>
+      </label>
+      <label>Filter Priority:
+        <select id="filterPriority" class="p-2 border rounded">
+          <option value="All">All</option>
+          <option value="High">High</option>
+          <option value="Medium">Medium</option>
+          <option value="Low">Low</option>
+        </select>
+      </label>
+      <label>Filter Status:
+        <select id="filterStatus" class="p-2 border rounded">
+          <option value="All">All</option>
+          <option value="To Do">To Do</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Done">Done</option>
+        </select>
+      </label>
       <button onclick="exportCSV()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Export CSV</button>
     </div>
 
-    <canvas id="categoryChart" class="mb-6"></canvas>
-    <canvas id="assigneeChart" class="mb-6"></canvas>
+    <div id="taskListContainer" class="mb-6"></div>
 
-    <div id="taskListContainer"></div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-10">
+      <canvas id="categoryChart"></canvas>
+      <canvas id="assigneeChart"></canvas>
+    </div>
   </div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
-    import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyAClGKKU60gJQLlOHpCzpyD0Xukzbkb50k",
-      authDomain: "civics-dash.firebaseapp.com",
-      projectId: "civics-dash",
-      storageBucket: "civics-dash.appspot.com",
-      messagingSenderId: "208882642276",
-      appId: "1:208882642276:web:3e170ef6e855139ba0e961"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const tasksRef = collection(db, 'artifacts/default-app-id/public/data/civics_tasks');
-
-    const taskListContainer = document.getElementById('taskListContainer');
-
-    let tasks = [];
-
-    onSnapshot(tasksRef, (snapshot) => {
-      tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      renderTasks();
-      drawCharts();
-    });
-
-    const toggleDarkMode = () => {
-      const isDark = document.documentElement.classList.toggle('dark');
-      localStorage.setItem('theme', isDark ? 'dark' : 'light');
-    };
-
-    function daysRemaining(dueDate) {
-      const today = new Date();
-      const due = new Date(dueDate);
-      const diff = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
-      return `${diff} day${diff === 1 ? '' : 's'} remaining`;
-    }
-
-    function renderTasks() {
-      taskListContainer.innerHTML = '';
-      tasks.forEach(task => {
-        const taskDiv = document.createElement('div');
-        taskDiv.className = `p-4 mb-4 rounded shadow border-l-4 border-sky-500 bg-white dark:bg-slate-800`;
-        taskDiv.innerHTML = `
-          <input value="${task.name}" onchange="updateField('${task.id}', 'name', this.value)" class="block text-lg font-bold w-full bg-transparent border-b border-sky-300 focus:outline-none mb-1" />
-          <div class="text-sm opacity-70 mb-2">${task.category} | ${task.status} | ${task.assignedTo} | ${task.priority}</div>
-          <div class="text-xs mb-2">${task.dueDate ? daysRemaining(task.dueDate) : 'No due date set'}</div>
-          <button onclick="deleteTask('${task.id}')" class="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600">Delete</button>
-        `;
-        taskListContainer.appendChild(taskDiv);
-      });
-    }
-
-    window.updateField = async (id, field, value) => {
-      const taskDoc = doc(db, 'artifacts/default-app-id/public/data/civics_tasks', id);
-      await updateDoc(taskDoc, { [field]: value });
-    };
-
-    window.deleteTask = async (id) => {
-      const taskDoc = doc(db, 'artifacts/default-app-id/public/data/civics_tasks', id);
-      await deleteDoc(taskDoc);
-    };
-
-    window.exportCSV = () => {
-      const csv = Papa.unparse(tasks);
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement("a");
-      link.setAttribute("href", URL.createObjectURL(blob));
-      link.setAttribute("download", "tasks_export.csv");
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    };
-
-    function drawCharts() {
-      const categories = {};
-      const assignees = {};
-      tasks.forEach(t => {
-        categories[t.category] = (categories[t.category] || 0) + 1;
-        assignees[t.assignedTo] = (assignees[t.assignedTo] || 0) + 1;
-      });
-
-      new Chart(document.getElementById('categoryChart'), {
-        type: 'bar',
-        data: {
-          labels: Object.keys(categories),
-          datasets: [{ label: 'Tasks by Category', data: Object.values(categories), backgroundColor: 'rgba(59,130,246,0.6)' }]
-        },
-        options: { responsive: true, plugins: { legend: { display: false } } }
-      });
-
-      new Chart(document.getElementById('assigneeChart'), {
-        type: 'bar',
-        data: {
-          labels: Object.keys(assignees),
-          datasets: [{ label: 'Tasks by Assignee', data: Object.values(assignees), backgroundColor: 'rgba(16,185,129,0.6)' }]
-        },
-        options: { responsive: true, plugins: { legend: { display: false } } }
-      });
-    }
-  </script>
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js"></script>
+  <script src="dashboard.js"></script>
 </body>
 </html>
