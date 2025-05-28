@@ -1,87 +1,132 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="transition-colors">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Civics Committee To-Do List</title>
+  <title>Civics Committee Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 </head>
-<body>
-  <div id="userIdDisplay">Loading User ID...</div>
-  <div id="loadingSpinner">Loading...</div>
-  <div id="messageBox" style="display:none;"><span id="messageText"></span></div>
+<body class="bg-gradient-to-br from-slate-50 to-sky-100 dark:from-slate-800 dark:to-slate-900 text-slate-800 dark:text-slate-100">
+  <div class="container mx-auto p-6">
+    <div class="flex justify-between items-center mb-4">
+      <h1 class="text-3xl font-bold text-sky-700 dark:text-sky-300">Civics Committee To-Do</h1>
+      <button onclick="toggleDarkMode()" class="bg-slate-300 dark:bg-slate-700 px-4 py-2 rounded hover:bg-slate-400 dark:hover:bg-slate-600">Toggle Dark Mode</button>
+    </div>
+
+    <div class="flex flex-wrap gap-2 mb-4">
+      <button onclick="exportCSV()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Export CSV</button>
+    </div>
+
+    <canvas id="categoryChart" class="mb-6"></canvas>
+    <canvas id="assigneeChart" class="mb-6"></canvas>
+
+    <div id="taskListContainer"></div>
+  </div>
 
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, collection, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+    import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAClGKKU60gJQLlOHpCzpyD0Xukzbkb50k",
       authDomain: "civics-dash.firebaseapp.com",
       projectId: "civics-dash",
       storageBucket: "civics-dash.appspot.com",
-      messagingSenderId: "953440156893",
-      appId: "1:953440156893:web:08865d0d5b71d23e3bef34",
-      measurementId: "G-VVY8VGDQY9"
+      messagingSenderId: "208882642276",
+      appId: "1:208882642276:web:3e170ef6e855139ba0e961"
     };
 
     const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
     const db = getFirestore(app);
+    const tasksRef = collection(db, 'artifacts/default-app-id/public/data/civics_tasks');
 
-    const displayMessage = (message, type = 'info') => {
-      const messageBox = document.getElementById('messageBox');
-      const messageText = document.getElementById('messageText');
-      messageText.textContent = message;
-      messageBox.style.display = 'block';
-      messageBox.style.backgroundColor = type === 'error' ? '#fecaca' : '#d1fae5';
-      setTimeout(() => messageBox.style.display = 'none', 5000);
-    };
+    const taskListContainer = document.getElementById('taskListContainer');
 
-    const signIn = async () => {
-      try {
-        const token = window.__initial_auth_token || null;
-        if (token) {
-          console.log("Attempting custom token sign-in");
-          await signInWithCustomToken(auth, token);
-        } else {
-          console.log("Attempting anonymous sign-in");
-          await signInAnonymously(auth);
-        }
-      } catch (error) {
-        console.error("Authentication failed:", error);
-        displayMessage(`Auth error (${error.code}): ${error.message}`, 'error');
-        document.getElementById('loadingSpinner').style.display = 'none';
-      }
-    };
+    let tasks = [];
 
-    onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        document.getElementById('userIdDisplay').textContent = `User ID: ${user.uid}`;
-        document.getElementById('loadingSpinner').style.display = 'none';
-        displayMessage('Authentication successful!', 'success');
-
-        // Test Firestore read to confirm access
-        try {
-          const testRef = doc(db, 'test/authCheck');
-          const testSnap = await getDoc(testRef);
-          if (testSnap.exists()) {
-            console.log("Firestore test read successful:", testSnap.data());
-          } else {
-            await setDoc(testRef, { status: 'created for test' });
-            console.log("Created test document in Firestore.");
-          }
-        } catch (err) {
-          console.error("Firestore access error:", err);
-          displayMessage(`Firestore error (${err.code}): ${err.message}`, 'error');
-        }
-
-      } else {
-        await signIn();
-      }
+    onSnapshot(tasksRef, (snapshot) => {
+      tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      renderTasks();
+      drawCharts();
     });
+
+    const toggleDarkMode = () => {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    };
+
+    function daysRemaining(dueDate) {
+      const today = new Date();
+      const due = new Date(dueDate);
+      const diff = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
+      return `${diff} day${diff === 1 ? '' : 's'} remaining`;
+    }
+
+    function renderTasks() {
+      taskListContainer.innerHTML = '';
+      tasks.forEach(task => {
+        const taskDiv = document.createElement('div');
+        taskDiv.className = `p-4 mb-4 rounded shadow border-l-4 border-sky-500 bg-white dark:bg-slate-800`;
+        taskDiv.innerHTML = `
+          <input value="${task.name}" onchange="updateField('${task.id}', 'name', this.value)" class="block text-lg font-bold w-full bg-transparent border-b border-sky-300 focus:outline-none mb-1" />
+          <div class="text-sm opacity-70 mb-2">${task.category} | ${task.status} | ${task.assignedTo} | ${task.priority}</div>
+          <div class="text-xs mb-2">${task.dueDate ? daysRemaining(task.dueDate) : 'No due date set'}</div>
+          <button onclick="deleteTask('${task.id}')" class="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600">Delete</button>
+        `;
+        taskListContainer.appendChild(taskDiv);
+      });
+    }
+
+    window.updateField = async (id, field, value) => {
+      const taskDoc = doc(db, 'artifacts/default-app-id/public/data/civics_tasks', id);
+      await updateDoc(taskDoc, { [field]: value });
+    };
+
+    window.deleteTask = async (id) => {
+      const taskDoc = doc(db, 'artifacts/default-app-id/public/data/civics_tasks', id);
+      await deleteDoc(taskDoc);
+    };
+
+    window.exportCSV = () => {
+      const csv = Papa.unparse(tasks);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      link.setAttribute("href", URL.createObjectURL(blob));
+      link.setAttribute("download", "tasks_export.csv");
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+
+    function drawCharts() {
+      const categories = {};
+      const assignees = {};
+      tasks.forEach(t => {
+        categories[t.category] = (categories[t.category] || 0) + 1;
+        assignees[t.assignedTo] = (assignees[t.assignedTo] || 0) + 1;
+      });
+
+      new Chart(document.getElementById('categoryChart'), {
+        type: 'bar',
+        data: {
+          labels: Object.keys(categories),
+          datasets: [{ label: 'Tasks by Category', data: Object.values(categories), backgroundColor: 'rgba(59,130,246,0.6)' }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } }
+      });
+
+      new Chart(document.getElementById('assigneeChart'), {
+        type: 'bar',
+        data: {
+          labels: Object.keys(assignees),
+          datasets: [{ label: 'Tasks by Assignee', data: Object.values(assignees), backgroundColor: 'rgba(16,185,129,0.6)' }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } }
+      });
+    }
   </script>
 </body>
 </html>
