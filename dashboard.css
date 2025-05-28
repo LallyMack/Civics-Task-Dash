@@ -1,0 +1,55 @@
+
+/* dashboard.css – Purple, Silver, and Gold theme */
+
+.priority-high {
+  border-color: #a855f7;
+  background-color: #fdf4ff;
+}
+
+.priority-medium {
+  border-color: #e0e0e0;
+  background-color: #f9fafb;
+}
+
+.priority-low {
+  border-color: #d1b92a;
+  background-color: #fffbea;
+}
+
+.task-tile {
+  transition: all 0.3s ease;
+  background: linear-gradient(to bottom right, #f9f9fb, #e6e6f6);
+  border: 1px solid #ddd;
+}
+
+.task-tile:hover {
+  box-shadow: 0 4px 20px rgba(128, 90, 213, 0.2);
+  background: linear-gradient(to bottom right, #f4f1fb, #dcd6f6);
+}
+
+button {
+  transition: background 0.2s ease;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+/* Modal transitions */
+#taskModal {
+  backdrop-filter: blur(2px);
+}
+
+select,
+input[type="text"],
+input[type="date"] {
+  background-color: white;
+  color: black;
+}
+
+.dark select,
+.dark input[type="text"],
+.dark input[type="date"] {
+  background-color: #334155;
+  color: #f1f5f9;
+}
